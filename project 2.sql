@@ -243,6 +243,6 @@ WITH date_index AS (
         (100 - ROUND(m4 / m1 * 100.00, 2)) || '%' AS m4
     FROM customer_cohort
 )
---select * from customer_cohort
---select * from retention_cohort
---select * from churn_cohort
+select * from customer_cohort
+select * from retention_cohort
+select * from churn_cohort
