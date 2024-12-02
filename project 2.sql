@@ -130,3 +130,119 @@ FROM DAILY_REVENUE
 ORDER BY 
     dates, 
     product_categories;
+--III.1
+WITH x AS (
+SELECT 
+        FORMAT_TIMESTAMP('%Y-%m', c.created_at) AS Month,
+        FORMAT_TIMESTAMP('%Y', c.created_at) AS Year,
+        a.category AS Product_category,
+        COUNT(b.product_id) AS TPO -- Tổng số đơn hàng mỗi category ở từng tháng
+    FROM 
+        bigquery-public-data.thelook_ecommerce.products a
+    JOIN 
+        bigquery-public-data.thelook_ecommerce.order_items b
+        ON a.id = b.product_id
+    JOIN 
+        bigquery-public-data.thelook_ecommerce.orders c
+        ON b.order_id = c.order_id
+    WHERE 
+        b.status = 'Complete'
+    GROUP BY 1, 2, 3
+    ORDER BY Month, Year,Product_category 
+), xx AS(
+SELECT
+    Month,
+    Year,
+    Product_category,
+    ROUND(sum(TPO * b.sale_price),2) AS TPV, -- Tổng doanh thu mỗi category ở từng tháng
+    TPO,
+    ROUND(SUM(TPO * a.cost),2) AS Total_cost -- Tổng chi phí mỗi category ở từng tháng,
+FROM x
+    JOIN bigquery-public-data.thelook_ecommerce.products a
+        ON x.Product_category = a.category
+    JOIN 
+        bigquery-public-data.thelook_ecommerce.order_items b
+        ON a.id = b.product_id
+    WHERE 
+        b.status = 'Complete'
+GROUP BY 1,2,3,5
+ORDER BY Month, Year,Product_category 
+)
+SELECT  
+    Month,
+    Year,
+    Product_category,
+    TPV,
+    TPO,
+    -- Tăng trưởng doanh thu 
+    round((TPV - LAG(TPV) OVER (ORDER BY Year, Month, Product_category)) / LAG(TPV) OVER (ORDER BY Year, Month, Product_category) * 100.00,2) || '%' AS Revenue_growth, 
+    -- Tăng trưởng số đơn hàng
+    round((TPO - LAG(TPO) OVER (ORDER BY Year, Month, Product_category)) / LAG(TPO) OVER (ORDER BY Year, Month, Product_category) * 100.00,2) || '%' AS Order_growth, 
+    Total_cost,
+    ROUND((TPV - Total_cost),2) AS Total_profit, -- Tổng lợi nhuận mỗi tháng
+    ROUND(((TPV - Total_cost) / Total_cost * 100.00),2) AS Profit_to_cost_ratio  -- Tỷ lệ lợi nhuận trên chi phí mỗi tháng
+FROM xx
+ORDER BY Year, Month, Product_category
+
+--III.2
+WITH date_index AS (
+  SELECT 
+      user_id,
+      amount,
+      created_at,
+      FORMAT_TIMESTAMP('%Y-%m', created_at) AS cohort_date,
+      (EXTRACT(YEAR FROM created_at) - EXTRACT(YEAR FROM first_purchase_date)) * 12 + 
+      EXTRACT(MONTH FROM created_at) - EXTRACT(MONTH FROM first_purchase_date) + 1 AS index
+  FROM (
+    SELECT 
+        user_id, 
+        ROUND(sale_price, 2) AS amount,
+        MIN(created_at) OVER (PARTITION BY user_id) AS first_purchase_date,
+        created_at
+    FROM 
+        bigquery-public-data.thelook_ecommerce.order_items 
+  )
+), condition AS (
+    SELECT 
+        cohort_date,
+        index,
+        COUNT(DISTINCT user_id) AS user_count,
+        SUM(amount) AS sum_amount
+    FROM 
+        date_index
+    GROUP BY 
+        cohort_date,
+        index
+    ORDER BY 
+        cohort_date, 
+        index
+), customer_cohort AS (
+    SELECT  
+        cohort_date, 
+        SUM(CASE WHEN index = 1 THEN user_count ELSE 0 END) AS m1,
+        SUM(CASE WHEN index = 2 THEN user_count ELSE 0 END) AS m2,
+        SUM(CASE WHEN index = 3 THEN user_count ELSE 0 END) AS m3,
+        SUM(CASE WHEN index = 4 THEN user_count ELSE 0 END) AS m4
+    FROM condition
+    GROUP BY cohort_date
+    ORDER BY cohort_date
+), retention_cohort AS (
+    SELECT 
+        cohort_date,
+        ROUND(m1 / m1 * 100.00, 2) || '%' AS m1,
+        ROUND(m2 / m1 * 100.00, 2) || '%' AS m2,
+        ROUND(m3 / m1 * 100.00, 2) || '%' AS m3,
+        ROUND(m4 / m1 * 100.00, 2) || '%' AS m4
+    FROM customer_cohort
+), churn_cohort AS (
+    SELECT 
+        cohort_date,
+        (100 - ROUND(m1 / m1 * 100.00, 2)) || '%' AS m1,
+        (100 - ROUND(m2 / m1 * 100.00, 2)) || '%' AS m2,
+        (100 - ROUND(m3 / m1 * 100.00, 2)) || '%' AS m3,
+        (100 - ROUND(m4 / m1 * 100.00, 2)) || '%' AS m4
+    FROM customer_cohort
+)
+--select * from customer_cohort
+--select * from retention_cohort
+--select * from churn_cohort
