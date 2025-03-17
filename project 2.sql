@@ -1,3 +1,99 @@
+/* Dataset: https://console.cloud.google.com/marketplace/product/bigquery-public-data/thelook-ecommerce?q=search&referrer=search&project=sincere-torch-350709&inv=1&invt=AbsRww 
+I. Tổng quan về dữ liệu
+
+TheLook là một trang web thương mại điện tử về quần áo. Tập dữ liệu chứa thông tin về customers, products, orders, logistics, web events , digital marketing campaigns. Thelook Dataset
+
+Bảng Orders : ghi lại tất cả các đơn hàng mà khách hàng đã đặt
+
+Bảng Order_items : ghi lại danh sách các mặt hàng đã mua trong mỗi order ID..
+
+Bảng Products : ghi lại chi tiết các sản phẩm được bán trên The Look, bao gồm price, brand, & product categories
+
+II. Ad-hoc tasks
+
+1. Số lượng đơn hàng và số lượng khách hàng mỗi tháng
+
+Thống kê tổng số lượng người mua và số lượng đơn hàng đã hoàn thành mỗi tháng ( Từ 1/2019-4/2022)
+
+Output: month_year ( yyyy-mm) , total_user, total_orde
+
+Insight là gì? ( nhận xét về sự tăng giảm theo thời gian)
+
+Note: Nếu lỗi “SELECT list expression references column created_at which is neither grouped nor aggregated”
+
+Thì ở Group by, Order by thay vì liệt kê tên cột giống ở phần SELECT ta để số thử tự cột (1,2..)
+
+Ví dụ:
+
+SELECT col1, col2., AGG()
+
+FROM table
+
+GROUP BY col1, col2 =>> chuyển thành: GROUP BY 1,2 (chỉ số thứ tự cột được gom nhóm)
+
+2. Giá trị đơn hàng trung bình (AOV) và số lượng khách hàng mỗi tháng
+
+Thống kê giá trị đơn hàng trung bình và tổng số người dùng khác nhau mỗi tháng 
+
+( Từ 1/2019-4/2022)
+
+Output: month_year ( yyyy-mm), distinct_users, average_order_value
+
+Hint: Giá trị đơn hàng lấy trường sale_price từ bảng order_items
+
+giá trị đơn hàng trung bình = tổng giá trị đơn hàng trong tháng/số lượng đơn hàng
+Insight là gì?  ( nhận xét về sự tăng giảm theo thời gian)
+
+3. Nhóm khách hàng theo độ tuổi
+
+Tìm các khách hàng có trẻ tuổi nhất và lớn tuổi nhất theo từng giới tính ( Từ 1/2019-4/2022)
+
+Output: first_name, last_name, gender, age, tag (hiển thị youngest nếu trẻ tuổi nhất, oldest nếu lớn tuổi nhất)
+
+Hint: Sử dụng UNION các KH tuổi trẻ nhất với các KH tuổi trẻ nhất 
+
+tìm các KH tuổi trẻ nhất và gán tag ‘youngest’  
+
+tìm các KH tuổi trẻ nhất và gán tag ‘oldest’ 
+
+Insight là gì? (Trẻ nhất là bao nhiêu tuổi, số lượng bao nhiêu? Lớn nhất là bao nhiêu tuổi, số lượng bao nhiêu) 
+
+Note: Lưu output vào temp table rồi đếm số lượng tương ứng 
+
+4.Top 5 sản phẩm mỗi tháng.
+
+Thống kê top 5 sản phẩm có lợi nhuận cao nhất từng tháng (xếp hạng cho từng sản phẩm). 
+
+Output: month_year ( yyyy-mm), product_id, product_name, sales, cost, profit, rank_per_month
+
+Hint: Sử dụng hàm dense_rank()
+
+5.Doanh thu tính đến thời điểm hiện tại trên mỗi danh mục
+
+Thống kê tổng doanh thu theo ngày của từng danh mục sản phẩm (category) trong 3 tháng qua ( giả sử ngày hiện tại là 15/4/2022)
+
+Output: dates (yyyy-mm-dd), product_categories, revenue
+
+III. Tạo metric trước khi dựng dashboard
+
+1) Giả sử team của bạn đang cần dựng dashboard và có yêu cầu xử lý dữ liệu trước khi kết nối với BI tool. Sau khi bàn bạc, team của bạn quyết định các metric cần thiết cho dashboard và cần phải trích xuất dữ liệu từ database để ra được 1 dataset như mô tả Yêu cầu dataset
+
+Hãy sử dụng câu lệnh SQL để tạo ra 1 dataset như mong muốn và lưu dataset đó vào VIEW đặt tên là vw_ecommerce_analyst
+
+2) Tạo retention cohort analysis.
+
+Lưu ý: Ở mỗi cohort chỉ theo dõi 3 tháng (indext từ 1 đến 4)
+
+Ví dụ:
+
+Ở phạm vi chương trình này, bạn hãy visualize thêm 1 cohort analysis trên excel nha.
+
+Sau đó hãy tìm insight từ cohort analysis đó rồi đưa ra vài đề xuất giúp cải thiện tình hình kinh doanh của công ty */
+
+
+
+
+
 --Số lượng đơn hàng và số lượng khách hàng mỗi tháng
 select 
 FORMAT_TIMESTAMP('%Y-%m', created_at) AS month_year,
